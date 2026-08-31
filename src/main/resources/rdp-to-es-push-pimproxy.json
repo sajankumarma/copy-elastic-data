@@ -1,0 +1,130 @@
+{
+    "target":
+    {
+        "manageUrl": "http://localhost",
+        "managePort": "9200",
+        "tenantId": "t1",
+        "headers":
+        {
+            "Content-Type": "application/json"
+        }
+    },
+    "source":
+    {
+        "manageUrl": "http://pimapiproxy.syndigo.com",
+        "managePort": "8000/rdpdsna09",
+        "tenantId": "gncds",
+        "headers":
+        {
+            "x-rdp-version": 8.1,
+            "x-rdp-clientId": "rdpclient",
+            "x-rdp-tenantId": "{{SOURCE_TENANT_ID}}",
+            "x-rdp-ownershipData": "Nike",
+            "x-rdp-userId": "system_user",
+            "x-rdp-userName": "Maryj",
+            "x-rdp-firstName": "Mary",
+            "x-rdp-lastName": "Jane",
+            "x-rdp-userEmail": "mary.jane@riversand.com",
+            "x-rdp-userRoles": "[\"admin\"]",
+            "Content-Type": "application/json",
+            "Authorization": "Bearer eyJ0eXAiOiJKV1QiLCJhbGciOiJSUzI1NiIsIng1dCI6Il9qTndqZVNudlRUSzhYRWRyNVFVUGtCUkxMbyIsImtpZCI6Il9qTndqZVNudlRUSzhYRWRyNVFVUGtCUkxMbyJ9.eyJhdWQiOiJhcGk6Ly8zMzYzMWYwMy00OGZlLTRiOWUtYTg2My1iMDkzY2UwZTI1MjEiLCJpc3MiOiJodHRwczovL3N0cy53aW5kb3dzLm5ldC9iMGRkNTRlMC1iZGU0LTQyNzUtOTllOC04ODRiYTk5ZWI1NDEvIiwiaWF0IjoxNzUzMDc4Mjk2LCJuYmYiOjE3NTMwNzgyOTYsImV4cCI6MTc1MzEwNzM5NiwiYWNyIjoiMSIsImFpbyI6IkFZUUFlLzhaQUFBQWRYRU4wNlcvNFV5SjJQNC9qSkZDMGFTQnVaSSt4MzBYS1NiejFTQUdLVTVneWF0OW5GYUM1eWMwZTRDVUlDQWJNUk90UFNxLzNGcCtDb2l0bmNCdTNraXBRcCtrWjloZ0JvYjNGVUJFdzlndFVVZWtYTkt6THYwUFhHVTNTZS9wUEptN2hhOStaVXRvcjV0eFZPNkwyYkVjS3c3Y040ZktaQ3hSSDZUb0VsMD0iLCJhbXIiOlsicHdkIl0sImFwcGlkIjoiMzM2MzFmMDMtNDhmZS00YjllLWE4NjMtYjA5M2NlMGUyNTIxIiwiYXBwaWRhY3IiOiIxIiwiZW1haWwiOiJzYWphbi5rdW1hckBzeW5kaWdvLmNvbSIsImdyb3VwcyI6WyIzYmNkZjk5Yi0xYTUxLTQzODQtODcxOC1mMjA3ZDVmODU3Y2QiXSwiaWRwIjoiaHR0cHM6Ly9zdHMud2luZG93cy5uZXQvZjk3ZGY5NDMtZTAwNi00ZGRiLTg5YWItN2MyNjZjYTFlMGJkLyIsImlwYWRkciI6IjI0MDE6NDkwMDoxYzY2OjZlNGU6MjJjMjphYjEyOmViNGI6ZWQ0NyIsIm5hbWUiOiJTYWphbiBLdW1hciIsIm9pZCI6IjcwMDRmNTJhLWMxZjctNDZhNi1iMTI1LTA3OGI0ODZjMDljNyIsInJoIjoiMS5BVkVBNEZUZHNPUzlkVUtaNkloTHFaNjFRUU1mWXpQLVNKNUxxR093azg0T0pTRmdBZHBSQUEuIiwic2NwIjoiZ2V0LnRva2VuIiwic2lkIjoiMDA2ZTBiZjktNjk0NC00YTBhLWQyYzctZWIzYWMyNWI5ODg3Iiwic3ViIjoiSUl5UWhxNWZwYzVNbUxscXNYc3hOUi1HeXhUWGlfZjFoclZNQS0wdWt0VSIsInRpZCI6ImIwZGQ1NGUwLWJkZTQtNDI3NS05OWU4LTg4NGJhOTllYjU0MSIsInVuaXF1ZV9uYW1lIjoic2FqYW4ua3VtYXJAc3luZGlnby5jb20iLCJ1dGkiOiJpeW9oZmw4dzkwQ1ZDOWNOYjJOc0FBIiwidmVyIjoiMS4wIiwieG1zX2Z0ZCI6InY5RXZORnpxdVV1Z2h2N1ZPdWtTdG53RXQyUFNRdkgtSm1MOEtWRmlJWlVCZFhOemIzVjBhQzFrYzIxeiJ9.NFBzpPS8zh1s7qv6ra2evuhgXm4MCTA_sp_ZlfdK4xSFJTGEGqE8PSgNjVKjdGSxBsUc6qfR8Ugh3qSjeX2XgVEQG2oGwx09hO3ihJzghdikxLRZ1Ht4vPsLUGHA42u6tTxfHTuZHqH37wwQyL2YHsJ1uJmB-xOj_S5MJREoFLdiY39kQRjrl2D8IeKH25b3zCwJNBKOl29Zclk0oKpDjjsIVla12mkndOgpsjjavRhVuGkazXmH68gTC7ulkGqe91mmFLluWW7-GSFDjv-1SzcG-Bv-2crf0r8Tz8mSo5IxdhFnIjBB6czlgORBulhv_kJ4jPE_jwnsJEa1ARrgeg"
+        }
+    },
+    "dataObjectTypes":
+    [
+        {
+            "type": "businessCondition",
+            "sourceIndex": "{{SOURCE_TENANT_ID}}entitymanagemodelreadindex",
+            "targetIndex": "{{TARGET_TENANT_ID}}_entitymanagemodelindex"
+        },
+        {
+            "type": "businessRule",
+            "sourceIndex": "{{SOURCE_TENANT_ID}}entitymanagemodelreadindex",
+            "targetIndex": "{{TARGET_TENANT_ID}}_entitymanagemodelindex"
+        }
+    ],
+    "dataObjectsIds":
+    [
+        {
+            "ids":
+            [
+                "product_ruleContextMappings"
+            ],
+            "type": "ruleContextMappings",
+            "sourceIndex": "{{SOURCE_TENANT_ID}}entitymanagemodelreadindex",
+            "targetIndex": "{{TARGET_TENANT_ID}}_entitymanagemodelindex"
+        },
+        {
+            "ids":
+            [
+                "product_entityManageModel"
+            ],
+            "type": "entityManageModel",
+            "sourceIndex": "{{SOURCE_TENANT_ID}}entitymanagemodelreadindex",
+            "targetIndex": "{{TARGET_TENANT_ID}}_entitymanagemodelindex"
+        },
+        {
+            "ids":
+            [
+                "product_entityValidationModel"
+            ],
+            "type": "entityValidationModel",
+            "sourceIndex": "{{SOURCE_TENANT_ID}}entitymanagemodelreadindex",
+            "targetIndex": "{{TARGET_TENANT_ID}}_entitymanagemodelindex"
+        },
+        {
+            "ids":
+            [
+                "product_mergeModel"
+            ],
+            "type": "mergeModel",
+            "sourceIndex": "{{SOURCE_TENANT_ID}}entitymanagemodelreadindex",
+            "targetIndex": "{{TARGET_TENANT_ID}}_entitymanagemodelindex"
+        },
+        {
+            "ids":
+            [
+                "product_entityType"
+            ],
+            "type": "entityType",
+            "sourceIndex": "{{SOURCE_TENANT_ID}}entitymanagemodelreadindex",
+            "targetIndex": "{{TARGET_TENANT_ID}}_entitymanagemodelindex"
+        },
+        {
+            "ids":
+            [
+                "productmaintenanceworkflow_workflowDefinition"
+            ],
+            "type": "workflowDefinition",
+            "sourceIndex": "{{SOURCE_TENANT_ID}}entitymanagemodelreadindex",
+            "targetIndex": "{{TARGET_TENANT_ID}}_entitymanagemodelindex"
+        },
+        {
+            "ids":
+            [
+                "product_workflowDefinitionMapping"
+            ],
+            "type": "workflowDefinitionMapping",
+            "sourceIndex": "{{SOURCE_TENANT_ID}}entitymanagemodelreadindex",
+            "targetIndex": "{{TARGET_TENANT_ID}}_entitymanagemodelindex"
+        },
+        {
+            "ids":
+            [
+                "erslEa0MIFE8CRX"
+            ],
+            "type": "product",
+            "sourceIndex": "{{SOURCE_TENANT_ID}}entityreadindex",
+            "targetIndex": "{{TARGET_TENANT_ID}}_entityindex"
+        },
+        {
+            "ids":
+            [
+                "erslEa0MIFE8CRX"
+            ],
+            "type": "product",
+            "sourceIndex": "{{SOURCE_TENANT_ID}}entitygovernreadindex",
+            "targetIndex": "{{TARGET_TENANT_ID}}_entitygovernindex"
+        }
+    ]
+}

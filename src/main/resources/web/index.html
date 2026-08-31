@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RDP → ES · Copy job</title>
+    <script>
+        (function () {
+            const stored = localStorage.getItem('rdp-theme');
+            if (stored === 'dark' || (!stored && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { darkMode: 'class' };
+    </script>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="topbar">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+        <a href="/" class="flex items-center gap-3">
+            <span class="brand-mark">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 17l9 4 9-4"/><path d="M3 12l9 4 9-4"/></svg>
+            </span>
+            <span class="font-semibold tracking-tight text-lg">RDP <span class="opacity-50">→</span> ES</span>
+        </a>
+        <nav class="flex items-center gap-2">
+            <a href="/" class="btn btn-ghost px-3 py-2 text-sm">Dashboard</a>
+            <a href="/config" class="btn btn-ghost px-3 py-2 text-sm">Config</a>
+            <button id="themeToggle" class="btn btn-ghost px-3 py-2" onclick="RDP.toggleTheme()" aria-label="Toggle theme">
+                <svg id="icon-sun" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+                <svg id="icon-moon" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            </button>
+        </nav>
+    </div>
+</header>
+
+<main class="max-w-5xl mx-auto px-4 sm:px-6 py-10 fade-in">
+    <nav class="text-xs mb-4" style="color:var(--text-soft)">
+        <a href="/" class="hover:underline">Dashboard</a>
+        <span class="px-1">›</span>
+        <span>Copy job</span>
+    </nav>
+
+    <section class="glass rounded-2xl p-8 mb-6">
+        <header class="flex items-start justify-between gap-4 flex-wrap mb-6">
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight">Build a copy job</h1>
+                <p class="text-sm mt-1" style="color:var(--text-soft)">Pick an index and choose what to migrate. You can copy entire types or specific document IDs — or both.</p>
+            </div>
+            <button class="btn btn-ghost" onclick="copyPreview()">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                Copy JSON
+            </button>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div>
+                <label for="indexName" class="label">Index</label>
+                <select id="indexName" class="field">
+                    <option value="entitymanagemodelindex">entitymanagemodelindex</option>
+                    <option value="entityindex">entityindex</option>
+                    <option value="configurationindex">configurationindex</option>
+                    <option value="entitygovernindex">entitygovernindex</option>
+                </select>
+                <p class="helper">The source index. The target index name will be derived from your target tenant.</p>
+            </div>
+
+            <div class="lg:col-span-2">
+                <div class="flex items-center justify-between mb-2">
+                    <span class="label mb-0">Data object types</span>
+                    <span class="text-xs" style="color:var(--text-soft)">Copies every document of these types</span>
+                </div>
+                <div id="dataObjectTypes" class="space-y-2">
+                    <div class="input-group flex gap-2">
+                        <input type="text" class="dataObjectType field" placeholder="e.g. itemMasterEntityType">
+                        <button onclick="addDataObjectType(this)" class="btn btn-info whitespace-nowrap">
+                            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                            Add type
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="glass rounded-2xl p-8 mb-6">
+        <header class="flex items-start justify-between gap-4 flex-wrap mb-4">
+            <div>
+                <h2 class="text-xl font-semibold tracking-tight">Specific document IDs</h2>
+                <p class="text-sm mt-1" style="color:var(--text-soft)">Use this when you need to migrate just a handful of documents.</p>
+            </div>
+            <button onclick="addDataObject()" class="btn btn-primary">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add data object
+            </button>
+        </header>
+
+        <div id="dataObjects" class="space-y-4">
+            <div class="data-object-container">
+                <div class="data-object p-4 rounded-xl" style="border:1px solid var(--card-ring); background:rgba(255,255,255,0.4)">
+                    <label class="label">Data object type</label>
+                    <input type="text" class="dataObjectTypeField field mb-3" placeholder="e.g. itemMasterEntityType">
+                    <label class="label">Document IDs</label>
+                    <div class="id-container space-y-2">
+                        <div class="id-group flex gap-2">
+                            <input type="text" class="dataObjectId field" placeholder="ID">
+                            <button onclick="removeId(this)" class="btn btn-danger hidden">Remove</button>
+                        </div>
+                    </div>
+                    <button onclick="addDataObjectId(this)" class="btn btn-ghost mt-3 text-sm">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        Add ID
+                    </button>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="glass rounded-2xl p-6 mb-6">
+        <details>
+            <summary class="cursor-pointer text-sm font-medium" style="color:var(--text-soft)">
+                Preview generated JSON payload
+            </summary>
+            <pre id="output" class="mt-3 p-4 rounded-lg code scroll-pretty overflow-auto max-h-72" style="background:rgba(15,23,42,0.04);border:1px solid var(--card-ring)"></pre>
+        </details>
+    </section>
+
+    <div class="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+        <a href="/" class="btn btn-ghost">← Back to dashboard</a>
+        <div class="flex gap-2">
+            <button onclick="refreshPreview()" class="btn btn-ghost">Preview</button>
+            <button onclick="generateJson()" id="processBtn" class="btn btn-success">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                Run copy
+            </button>
+        </div>
+    </div>
+</main>
+
+<div id="progressBackdrop" class="hidden fixed inset-0 z-40 backdrop-blur-sm flex items-center justify-center p-4" style="background:rgba(2,6,23,0.55)">
+    <div class="glass rounded-2xl p-7 w-full max-w-xl fade-in" role="dialog" aria-labelledby="progressTitle" aria-live="polite">
+        <div class="flex items-center justify-between gap-3 mb-1">
+            <div class="flex items-center gap-3">
+                <span id="progressSpinner" class="spinner" style="color:var(--accent)"></span>
+                <h2 id="progressTitle" class="text-xl font-bold tracking-tight">Starting copy job…</h2>
+            </div>
+            <span id="progressElapsed" class="text-xs" style="color:var(--text-soft)">0.0s</span>
+        </div>
+        <p id="progressLabel" class="text-sm code break-all mt-2 mb-4" style="color:var(--text-soft)">Preparing…</p>
+
+        <div class="w-full h-2.5 rounded-full overflow-hidden" style="background:rgba(99,102,241,0.12)">
+            <div id="progressBar" class="h-full rounded-full"
+                 style="width:0%;background:linear-gradient(90deg,#4f46e5,#06b6d4); transition: width 0.35s ease"></div>
+        </div>
+        <p id="progressCount" class="text-xs mt-2" style="color:var(--text-soft)">0 / 0 queries</p>
+
+        <div class="grid grid-cols-4 gap-2 mt-4">
+            <div class="text-center p-2 rounded-lg" style="background:rgba(16,185,129,0.10)">
+                <p class="text-[0.65rem] uppercase tracking-wide" style="color:var(--text-soft)">Created</p>
+                <p id="progressCreated" class="text-base font-bold" style="color:#059669">0</p>
+            </div>
+            <div class="text-center p-2 rounded-lg" style="background:rgba(234,179,8,0.10)">
+                <p class="text-[0.65rem] uppercase tracking-wide" style="color:var(--text-soft)">Updated</p>
+                <p id="progressUpdated" class="text-base font-bold" style="color:#a16207">0</p>
+            </div>
+            <div class="text-center p-2 rounded-lg" style="background:rgba(100,116,139,0.10)">
+                <p class="text-[0.65rem] uppercase tracking-wide" style="color:var(--text-soft)">Not found</p>
+                <p id="progressNotFound" class="text-base font-bold" style="color:#475569">0</p>
+            </div>
+            <div class="text-center p-2 rounded-lg" style="background:rgba(244,63,94,0.10)">
+                <p class="text-[0.65rem] uppercase tracking-wide" style="color:var(--text-soft)">Errored</p>
+                <p id="progressErrored" class="text-base font-bold" style="color:#be123c">0</p>
+            </div>
+        </div>
+
+        <details class="mt-4" open>
+            <summary class="cursor-pointer text-xs font-medium" style="color:var(--text-soft)">Activity log</summary>
+            <div id="progressLog"
+                 class="mt-2 max-h-40 overflow-auto code text-xs space-y-1 p-3 rounded-lg scroll-pretty"
+                 style="background:rgba(15,23,42,0.06); border:1px solid var(--card-ring)"></div>
+        </details>
+
+        <div id="progressFatal" class="hidden mt-4 p-3 rounded-lg text-sm" style="background:rgba(244,63,94,0.10); border:1px solid rgba(244,63,94,0.35); color:#be123c"></div>
+
+        <div class="mt-5 flex justify-end gap-2">
+            <button id="progressCancel" class="btn btn-ghost" onclick="hideProgress()">Close</button>
+            <a id="progressView" href="/results" class="btn btn-primary hidden">View results →</a>
+        </div>
+    </div>
+</div>
+
+<script src="/app.js"></script>
+<script>
+    function updateRemoveButtons() {
+        const dataObjectContainers = document.getElementsByClassName('data-object-container');
+        Array.from(dataObjectContainers).forEach(container => {
+            let removeButton = container.querySelector('.remove-data-object');
+            if (dataObjectContainers.length > 1) {
+                if (!removeButton) {
+                    removeButton = document.createElement('button');
+                    removeButton.className = 'remove-data-object btn btn-danger mt-3 text-sm';
+                    removeButton.textContent = 'Remove data object';
+                    removeButton.onclick = () => removeDataObject(removeButton);
+                    container.querySelector('.data-object').appendChild(removeButton);
+                }
+            } else if (removeButton) {
+                removeButton.remove();
+            }
+        });
+
+        Array.from(document.getElementsByClassName('data-object')).forEach(dataObject => {
+            const idContainer = dataObject.querySelector('.id-container');
+            const idGroups = idContainer.getElementsByClassName('id-group');
+            Array.from(idGroups).forEach(idGroup => {
+                const removeIdButton = idGroup.querySelector('button');
+                if (idGroups.length > 1) removeIdButton.classList.remove('hidden');
+                else removeIdButton.classList.add('hidden');
+            });
+        });
+    }
+
+    function addDataObjectType(button) {
+        const container = document.getElementById('dataObjectTypes');
+        const currentInput = button.previousElementSibling;
+        const currentValue = currentInput.value.trim();
+
+        if (currentValue) {
+            const typeContainer = document.createElement('div');
+            typeContainer.className = 'type-group flex gap-2 fade-in';
+            typeContainer.innerHTML = `
+                <input type="text" class="dataObjectType field" value="${RDP.escape(currentValue)}" readonly>
+                <button onclick="editDataObjectType(this)" class="btn btn-ghost whitespace-nowrap">Edit</button>
+                <button onclick="removeDataObjectType(this)" class="btn btn-danger whitespace-nowrap">Remove</button>
+            `;
+            container.insertBefore(typeContainer, currentInput.parentElement);
+            currentInput.value = '';
+        }
+
+        const newInputGroup = document.createElement('div');
+        newInputGroup.className = 'input-group flex gap-2 fade-in';
+        newInputGroup.innerHTML = `
+            <input type="text" class="dataObjectType field" placeholder="e.g. itemMasterEntityType">
+            <button onclick="addDataObjectType(this)" class="btn btn-info whitespace-nowrap">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                Add type
+            </button>
+        `;
+        container.appendChild(newInputGroup);
+
+        if (container.getElementsByClassName('input-group').length > 1) button.parentElement.remove();
+        refreshPreview();
+    }
+
+    function editDataObjectType(button) {
+        const input = button.parentElement.querySelector('.dataObjectType');
+        input.readOnly = false;
+        button.textContent = 'Save';
+        button.onclick = () => saveDataObjectType(button);
+    }
+
+    function saveDataObjectType(button) {
+        const input = button.parentElement.querySelector('.dataObjectType');
+        input.readOnly = true;
+        button.textContent = 'Edit';
+        button.onclick = () => editDataObjectType(button);
+        refreshPreview();
+    }
+
+    function removeDataObjectType(button) {
+        button.parentElement.remove();
+        refreshPreview();
+    }
+
+    function addDataObjectId(button) {
+        const idContainer = button.parentElement.querySelector('.id-container');
+        const newIdGroup = document.createElement('div');
+        newIdGroup.className = 'id-group flex gap-2 fade-in';
+        newIdGroup.innerHTML = `
+            <input type="text" class="dataObjectId field" placeholder="ID">
+            <button onclick="removeId(this)" class="btn btn-danger hidden">Remove</button>
+        `;
+        idContainer.appendChild(newIdGroup);
+        updateRemoveButtons();
+        refreshPreview();
+    }
+
+    function removeId(button) {
+        button.parentElement.remove();
+        updateRemoveButtons();
+        refreshPreview();
+    }
+
+    function addDataObject() {
+        const container = document.getElementById('dataObjects');
+        const newDataObjectContainer = document.createElement('div');
+        newDataObjectContainer.className = 'data-object-container fade-in';
+        newDataObjectContainer.innerHTML = `
+            <div class="data-object p-4 rounded-xl" style="border:1px solid var(--card-ring); background:rgba(255,255,255,0.4)">
+                <label class="label">Data object type</label>
+                <input type="text" class="dataObjectTypeField field mb-3" placeholder="e.g. itemMasterEntityType">
+                <label class="label">Document IDs</label>
+                <div class="id-container space-y-2">
+                    <div class="id-group flex gap-2">
+                        <input type="text" class="dataObjectId field" placeholder="ID">
+                        <button onclick="removeId(this)" class="btn btn-danger hidden">Remove</button>
+                    </div>
+                </div>
+                <button onclick="addDataObjectId(this)" class="btn btn-ghost mt-3 text-sm">
+                    <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                    Add ID
+                </button>
+            </div>
+        `;
+        container.appendChild(newDataObjectContainer);
+        updateRemoveButtons();
+        refreshPreview();
+    }
+
+    function removeDataObject(button) {
+        button.closest('.data-object-container').remove();
+        updateRemoveButtons();
+        refreshPreview();
+    }
+
+    function buildPayload() {
+        const indexName = document.getElementById('indexName').value;
+        const dataObjectTypes = Array.from(document.getElementsByClassName('dataObjectType'))
+            .map(input => input.value.trim())
+            .filter(Boolean);
+        const dataObjects = Array.from(document.getElementsByClassName('data-object')).map(div => {
+            const type = div.querySelector('.dataObjectTypeField').value.trim();
+            const ids = Array.from(div.querySelectorAll('.dataObjectId')).map(i => i.value.trim()).filter(Boolean);
+            return { dataObjectType: type, ids };
+        }).filter(obj => obj.dataObjectType && obj.ids.length > 0);
+
+        return { indexes: [{ indexName, dataObjectTypes, dataObjects }] };
+    }
+
+    function refreshPreview() {
+        const out = document.getElementById('output');
+        out.textContent = JSON.stringify(buildPayload(), null, 2);
+    }
+
+    function copyPreview() {
+        const text = JSON.stringify(buildPayload(), null, 2);
+        navigator.clipboard.writeText(text).then(
+            () => RDP.toast('Payload copied to clipboard.', 'success'),
+            () => RDP.toast('Clipboard write blocked by browser.', 'error')
+        );
+    }
+
+    document.addEventListener('input', refreshPreview);
+    document.addEventListener('change', refreshPreview);
+    refreshPreview();
+
+    let pollTimer = null;
+    let renderedLogLines = 0;
+
+    function showProgress() {
+        renderedLogLines = 0;
+        const backdrop = document.getElementById('progressBackdrop');
+        backdrop.classList.remove('hidden');
+        document.getElementById('progressView').classList.add('hidden');
+        document.getElementById('progressFatal').classList.add('hidden');
+        document.getElementById('progressFatal').textContent = '';
+        document.getElementById('progressLog').innerHTML = '';
+        document.getElementById('progressTitle').textContent = 'Starting copy job…';
+        document.getElementById('progressLabel').textContent = 'Preparing…';
+        document.getElementById('progressBar').style.width = '0%';
+        document.getElementById('progressCount').textContent = '0 / 0 queries';
+        document.getElementById('progressCreated').textContent = '0';
+        document.getElementById('progressUpdated').textContent = '0';
+        document.getElementById('progressNotFound').textContent = '0';
+        document.getElementById('progressErrored').textContent = '0';
+        document.getElementById('progressSpinner').style.display = 'inline-block';
+        document.getElementById('progressCancel').textContent = 'Cancel';
+    }
+
+    function hideProgress() {
+        if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+        document.getElementById('progressBackdrop').classList.add('hidden');
+    }
+
+    function fmtElapsed(ms) {
+        if (!ms || ms < 0) return '0.0s';
+        if (ms < 60000) return (ms / 1000).toFixed(1) + 's';
+        const m = Math.floor(ms / 60000);
+        const s = Math.floor((ms % 60000) / 1000);
+        return m + 'm ' + s + 's';
+    }
+
+    function renderProgress(p) {
+        const total = p.totalQueries || 0;
+        const done = p.completedQueries || 0;
+        const pct = total > 0 ? Math.min(100, (done / total) * 100) : (p.status === 'DONE' ? 100 : 5);
+        document.getElementById('progressBar').style.width = pct + '%';
+
+        document.getElementById('progressLabel').textContent = p.currentLabel || '…';
+        const docsLine = (p.docsProcessed || 0) + ' docs · ' + done + '/' + total + ' queries';
+        document.getElementById('progressCount').textContent = docsLine;
+        document.getElementById('progressElapsed').textContent = fmtElapsed(p.elapsedMs);
+        document.getElementById('progressCreated').textContent = p.docsCreated || 0;
+        document.getElementById('progressUpdated').textContent = p.docsUpdated || 0;
+        document.getElementById('progressNotFound').textContent = p.docsNotFound || 0;
+        document.getElementById('progressErrored').textContent = p.docsErrored || 0;
+
+        if (Array.isArray(p.log)) {
+            const logEl = document.getElementById('progressLog');
+            for (let i = renderedLogLines; i < p.log.length; i++) {
+                const line = document.createElement('div');
+                const text = String(p.log[i]);
+                line.textContent = text;
+                if (text.startsWith('✗') || text.startsWith('FATAL')) line.style.color = '#be123c';
+                else if (text.startsWith('·')) line.style.color = 'var(--text-soft)';
+                logEl.appendChild(line);
+            }
+            renderedLogLines = p.log.length;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        if (p.status === 'RUNNING' || p.status === 'PENDING') {
+            document.getElementById('progressTitle').textContent = 'Copying data…';
+        } else if (p.status === 'DONE') {
+            document.getElementById('progressTitle').textContent = 'Copy complete';
+            document.getElementById('progressSpinner').style.display = 'none';
+            document.getElementById('progressBar').style.width = '100%';
+            document.getElementById('progressCancel').textContent = 'Close';
+            document.getElementById('progressView').classList.remove('hidden');
+            const errs = p.docsErrored || 0;
+            RDP.toast(errs > 0 ? ('Copy finished with ' + errs + ' error(s).') : 'Copy completed successfully.', errs > 0 ? 'error' : 'success');
+        } else if (p.status === 'FAILED') {
+            document.getElementById('progressTitle').textContent = 'Copy failed';
+            document.getElementById('progressSpinner').style.display = 'none';
+            document.getElementById('progressBar').style.background = 'linear-gradient(90deg,#f43f5e,#fb7185)';
+            document.getElementById('progressBar').style.width = '100%';
+            if (p.fatalError) {
+                const fb = document.getElementById('progressFatal');
+                fb.classList.remove('hidden');
+                fb.textContent = p.fatalError;
+            }
+            document.getElementById('progressCancel').textContent = 'Close';
+            document.getElementById('progressView').classList.remove('hidden');
+        }
+    }
+
+    async function pollProgress() {
+        try {
+            const r = await fetch('/progress', { cache: 'no-store' });
+            if (r.ok) {
+                const p = await r.json();
+                renderProgress(p);
+                if (p.status === 'DONE' || p.status === 'FAILED') return;
+            }
+        } catch (e) { /* transient network — keep polling */ }
+        pollTimer = setTimeout(pollProgress, 700);
+    }
+
+    async function generateJson() {
+        const payload = buildPayload();
+        const indexNameOk = !!payload.indexes[0].indexName;
+        const hasTypes = payload.indexes[0].dataObjectTypes.length > 0;
+        const hasObjects = payload.indexes[0].dataObjects.length > 0;
+
+        if (!indexNameOk || (!hasTypes && !hasObjects)) {
+            RDP.toast('Pick an index and at least one type or document ID.', 'error');
+            return;
+        }
+
+        const btn = document.getElementById('processBtn');
+        RDP.setLoading(btn, true, 'Starting…');
+        showProgress();
+
+        try {
+            const response = await fetch('/process', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            if (!response.ok && response.status !== 202) {
+                let detail = '';
+                try { detail = (await response.json()).error || ''; } catch (_) {}
+                throw new Error(detail || ('Server returned HTTP ' + response.status));
+            }
+            pollProgress();
+        } catch (err) {
+            RDP.toast(err.message || 'Failed to start the copy job.', 'error');
+            hideProgress();
+        } finally {
+            RDP.setLoading(btn, false);
+        }
+    }
+</script>
+</body>
+</html>

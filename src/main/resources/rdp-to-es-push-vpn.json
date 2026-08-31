@@ -1,0 +1,102 @@
+{
+    "target":
+    {
+        "manageUrl": "http://localhost",
+        "managePort": "9200",
+        "tenantId": "t1",
+        "headers":
+        {
+            "Content-Type": "application/json"
+        }
+    },
+    "source":
+    {
+        "manageUrl": "http://manage.rdpenggqa7.riversand-dataplatform.com",
+        "managePort": "8085",
+        "tenantId": "qa7initialload",
+        "headers":
+        {
+            "x-rdp-version": 8.1,
+            "x-rdp-clientId": "rdpclient",
+            "x-rdp-tenantId": "{{SOURCE_TENANT_ID}}",
+            "x-rdp-ownershipData": "Nike",
+            "x-rdp-userId": "system_user",
+            "x-rdp-userName": "Maryj",
+            "x-rdp-firstName": "Mary",
+            "x-rdp-lastName": "Jane",
+            "x-rdp-userEmail": "mary.jane@riversand.com",
+            "x-rdp-userRoles": "[\"admin\"]",
+            "Content-Type": "application/json"
+        }
+    },
+    "dataObjectTypes":
+    [
+        {
+            "type": "businessCondition",
+            "sourceIndex": "{{SOURCE_TENANT_ID}}entitymanagemodelreadindex",
+            "targetIndex": "{{TARGET_TENANT_ID}}_entitymanagemodelindex"
+        },
+        {
+            "type": "businessRule",
+            "sourceIndex": "{{SOURCE_TENANT_ID}}entitymanagemodelreadindex",
+            "targetIndex": "{{TARGET_TENANT_ID}}_entitymanagemodelindex"
+        }
+    ],
+    "dataObjectsIds":
+    [
+        {
+            "ids":
+            [
+                "sku_ruleContextMappings"
+            ],
+            "type": "ruleContextMappings",
+            "sourceIndex": "{{SOURCE_TENANT_ID}}entitymanagemodelreadindex",
+            "targetIndex": "{{TARGET_TENANT_ID}}_entitymanagemodelindex"
+        },
+        {
+            "ids":
+            [
+                "sku_entityManageModel"
+            ],
+            "type": "entityManageModel",
+            "sourceIndex": "{{SOURCE_TENANT_ID}}entitymanagemodelreadindex",
+            "targetIndex": "{{TARGET_TENANT_ID}}_entitymanagemodelindex"
+        },
+        {
+            "ids":
+            [
+                "sku_entityValidationModel"
+            ],
+            "type": "entityValidationModel",
+            "sourceIndex": "{{SOURCE_TENANT_ID}}entitymanagemodelreadindex",
+            "targetIndex": "{{TARGET_TENANT_ID}}_entitymanagemodelindex"
+        },
+        {
+            "ids":
+            [
+                "testat1_workflowDefinition"
+            ],
+            "type": "workflowDefinition",
+            "sourceIndex": "{{SOURCE_TENANT_ID}}entitymanagemodelreadindex",
+            "targetIndex": "{{TARGET_TENANT_ID}}_entitymanagemodelindex"
+        },
+        {
+            "ids":
+            [
+                "sku_workflowDefinitionMapping"
+            ],
+            "type": "workflowDefinitionMapping",
+            "sourceIndex": "{{SOURCE_TENANT_ID}}entitymanagemodelreadindex",
+            "targetIndex": "{{TARGET_TENANT_ID}}_entitymanagemodelindex"
+        },
+        {
+            "ids":
+            [
+                "ersB1J81U6KqJaN"
+            ],
+            "type": "sku",
+            "sourceIndex": "{{SOURCE_TENANT_ID}}entityreadindex",
+            "targetIndex": "{{TARGET_TENANT_ID}}_entityindex"
+        }
+    ]
+}

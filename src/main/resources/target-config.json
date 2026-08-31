@@ -1,0 +1,8 @@
+{
+  "manageUrl": "http://localhost",
+  "managePort": "9200",
+  "tenantId": "t1",
+  "headers": {
+    "Content-Type": "application/json"
+  }
+}

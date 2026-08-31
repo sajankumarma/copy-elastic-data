@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RDP → ES · Server Config</title>
+    <script>
+        (function () {
+            const stored = localStorage.getItem('rdp-theme');
+            if (stored === 'dark' || (!stored && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { darkMode: 'class' };
+    </script>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="topbar">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+        <a href="/" class="flex items-center gap-3">
+            <span class="brand-mark">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 17l9 4 9-4"/><path d="M3 12l9 4 9-4"/></svg>
+            </span>
+            <span class="font-semibold tracking-tight text-lg">RDP <span class="opacity-50">→</span> ES</span>
+        </a>
+        <nav class="flex items-center gap-2">
+            <a href="/" class="btn btn-ghost px-3 py-2 text-sm">Dashboard</a>
+            <a href="/show-config" class="btn btn-ghost px-3 py-2 text-sm">View config</a>
+            <button id="themeToggle" class="btn btn-ghost px-3 py-2" onclick="RDP.toggleTheme()" aria-label="Toggle theme">
+                <svg id="icon-sun" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+                <svg id="icon-moon" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            </button>
+        </nav>
+    </div>
+</header>
+
+<main class="max-w-3xl mx-auto px-4 sm:px-6 py-10 fade-in">
+    <nav class="text-xs mb-4" style="color:var(--text-soft)">
+        <a href="/" class="hover:underline">Dashboard</a>
+        <span class="px-1">›</span>
+        <span>Configuration</span>
+    </nav>
+
+    <section class="glass rounded-2xl p-8">
+        <header class="mb-6">
+            <h1 class="text-2xl font-bold tracking-tight">Server configuration</h1>
+            <p class="text-sm mt-1" style="color:var(--text-soft)">These values define the source RDP tenant that documents are read from.</p>
+        </header>
+
+        <form id="configForm" class="space-y-5" novalidate>
+            <div>
+                <label for="manageUrl" class="label">Manage URL</label>
+                <input id="manageUrl" class="field" type="url" autocomplete="off" placeholder="https://rdp.example.com">
+                <p class="helper">Full origin including scheme. Example: <span class="code">https://rdp.example.com</span></p>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-5">
+                <div>
+                    <label for="managePort" class="label">Manage port</label>
+                    <input id="managePort" class="field" type="number" min="1" max="65535" placeholder="443">
+                </div>
+                <div>
+                    <label for="tenantId" class="label">Tenant ID</label>
+                    <input id="tenantId" class="field" type="text" autocomplete="off" placeholder="acme/tenant-1">
+                </div>
+            </div>
+
+            <div>
+                <label for="authToken" class="label">Authorization token <span class="opacity-60 normal-case font-normal">(optional)</span></label>
+                <div class="relative">
+                    <input id="authToken" class="field pr-24" type="password" autocomplete="off" placeholder="Bearer-able token">
+                    <button type="button" id="toggleToken" class="btn btn-ghost absolute right-1 top-1/2 -translate-y-1/2 text-xs px-3 py-1">Show</button>
+                </div>
+                <p class="helper">Required when the source URL is a PIM proxy. Sent as <span class="code">Authorization: Bearer …</span>.</p>
+            </div>
+
+            <div class="divider"></div>
+
+            <div class="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+                <a href="/" class="btn btn-ghost">← Cancel</a>
+                <div class="flex gap-2">
+                    <button type="button" class="btn btn-ghost" onclick="resetForm()">Reset</button>
+                    <button type="submit" id="submitBtn" class="btn btn-primary">
+                        <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+                        Save &amp; continue
+                    </button>
+                </div>
+            </div>
+        </form>
+    </section>
+</main>
+
+<script src="/app.js"></script>
+<script>
+    const form = document.getElementById('configForm');
+    const submitBtn = document.getElementById('submitBtn');
+    const tokenField = document.getElementById('authToken');
+    const toggleToken = document.getElementById('toggleToken');
+
+    toggleToken.addEventListener('click', () => {
+        const showing = tokenField.type === 'text';
+        tokenField.type = showing ? 'password' : 'text';
+        toggleToken.textContent = showing ? 'Show' : 'Hide';
+    });
+
+    function fieldEl(id) { return document.getElementById(id); }
+
+    function setError(id, msg) {
+        const el = fieldEl(id);
+        el.classList.toggle('error', !!msg);
+        const helperId = id + '-error';
+        let helper = document.getElementById(helperId);
+        if (msg) {
+            if (!helper) {
+                helper = document.createElement('p');
+                helper.id = helperId;
+                helper.className = 'helper error';
+                el.parentElement.appendChild(helper);
+            }
+            helper.textContent = msg;
+        } else if (helper) {
+            helper.remove();
+        }
+    }
+
+    function validate() {
+        let ok = true;
+        const url = fieldEl('manageUrl').value.trim();
+        const port = fieldEl('managePort').value.trim();
+        const tenant = fieldEl('tenantId').value.trim();
+
+        if (!url) { setError('manageUrl', 'Manage URL is required.'); ok = false; }
+        else if (!/^https?:\/\//i.test(url)) { setError('manageUrl', 'URL must start with http:// or https://'); ok = false; }
+        else setError('manageUrl', '');
+
+        if (!port) { setError('managePort', 'Port is required.'); ok = false; }
+        else if (!/^\d+$/.test(port) || +port < 1 || +port > 65535) { setError('managePort', 'Enter a port between 1 and 65535.'); ok = false; }
+        else setError('managePort', '');
+
+        if (!tenant) { setError('tenantId', 'Tenant ID is required.'); ok = false; }
+        else setError('tenantId', '');
+
+        return ok;
+    }
+
+    ['manageUrl','managePort','tenantId'].forEach(id => {
+        fieldEl(id).addEventListener('input', () => setError(id, ''));
+    });
+
+    function resetForm() {
+        form.reset();
+        ['manageUrl','managePort','tenantId'].forEach(id => setError(id, ''));
+    }
+
+    form.addEventListener('submit', async (event) => {
+        event.preventDefault();
+        if (!validate()) {
+            RDP.toast('Please fix the highlighted fields.', 'error');
+            return;
+        }
+
+        const authToken = fieldEl('authToken').value.trim();
+        const config = {
+            manageUrl: fieldEl('manageUrl').value.trim(),
+            managePort: fieldEl('managePort').value.trim(),
+            tenantId: fieldEl('tenantId').value.trim(),
+            headers: {
+                "x-rdp-version": 8.1,
+                "x-rdp-clientId": "rdpclient",
+                "x-rdp-tenantId": "{{SOURCE_TENANT_ID}}",
+                "x-rdp-ownershipData": "Nike",
+                "x-rdp-userId": "system_user",
+                "x-rdp-userName": "Maryj",
+                "x-rdp-firstName": "Mary",
+                "x-rdp-lastName": "Jane",
+                "x-rdp-userEmail": "mary.jane@riversand.com",
+                "x-rdp-userRoles": "[\"admin\"]",
+                "Content-Type": "application/json",
+                "Authorization": authToken ? `Bearer ${authToken}` : "nnn"
+            }
+        };
+
+        RDP.setLoading(submitBtn, true, 'Saving...');
+        try {
+            const response = await fetch('/save-config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(config)
+            });
+            if (response.ok || response.redirected) {
+                RDP.toast('Configuration saved.', 'success');
+                window.location.href = '/index';
+            } else {
+                const text = await response.text();
+                throw new Error(text || ('Server returned HTTP ' + response.status));
+            }
+        } catch (err) {
+            RDP.toast(err.message || 'Failed to save configuration.', 'error');
+        } finally {
+            RDP.setLoading(submitBtn, false);
+        }
+    });
+</script>
+</body>
+</html>

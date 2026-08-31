@@ -1,0 +1,19 @@
+{
+  "manageUrl" : "http://manage.rdpenggqa7.riversand-dataplatform.com",
+  "managePort" : "8085",
+  "tenantId" : "rwtestqa7",
+  "headers" : {
+    "x-rdp-version" : 8.1,
+    "x-rdp-clientId" : "rdpclient",
+    "x-rdp-tenantId" : "{{SOURCE_TENANT_ID}}",
+    "x-rdp-ownershipData" : "Nike",
+    "x-rdp-userId" : "system_user",
+    "x-rdp-userName" : "Maryj",
+    "x-rdp-firstName" : "Mary",
+    "x-rdp-lastName" : "Jane",
+    "x-rdp-userEmail" : "mary.jane@riversand.com",
+    "x-rdp-userRoles" : "[\"admin\"]",
+    "Content-Type" : "application/json",
+    "Authorization" : "nnn"
+  }
+}

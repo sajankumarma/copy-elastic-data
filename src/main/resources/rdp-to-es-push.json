@@ -1,0 +1,10 @@
+{
+  "indexes" : [ {
+    "indexName" : "entitymanagemodelindex",
+    "dataObjectTypes" : [ ],
+    "dataObjects" : [ {
+      "dataObjectType" : "authorizationModel",
+      "ids" : [ "sku_admin_authorizationModel" ]
+    } ]
+  } ]
+}
