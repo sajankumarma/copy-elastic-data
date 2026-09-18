@@ -54,6 +54,7 @@ public class IndexApp {
 
         routing.post("/save-config", IndexApp::handleConfigSave);
         routing.post("/process", IndexApp::handleProcess);
+        routing.post("/create-entities", IndexApp::handleCreateEntities);
         routing.get("/progress", IndexApp::handleProgress);
         routing.get("/results", IndexApp::handleResults);
         routing.get("/show-config", IndexApp::handleShowConfig);
@@ -71,6 +72,11 @@ public class IndexApp {
         routing.register("/index",
                 StaticContentService.builder("web")
                         .welcomeFileName("index.html")
+                        .build());
+
+        routing.register("/create",
+                StaticContentService.builder("web")
+                        .welcomeFileName("create.html")
                         .build());
     }
 
@@ -106,6 +112,42 @@ public class IndexApp {
                 res.status(500).send(JSON.writeValueAsString(body));
             } catch (Exception inner) {
                 sendErrorPage(res, "Failed to start job", e);
+            }
+        }
+    }
+
+    private static void handleCreateEntities(ServerRequest req, ServerResponse res) {
+        try {
+            String json = req.content().as(String.class);
+            JsonNode body = JsonHelper.asJson(json);
+
+            String service = JsonHelper.textAt(body, "service", "entitymanagementservice");
+            String entityKey = JsonHelper.textAt(body, "entityKey", "entity");
+            JsonNode entities = body.get("entities");
+
+            if (entities == null || !entities.isArray() || entities.isEmpty()) {
+                ObjectNode err = JSON.createObjectNode();
+                err.put("error", "No entities found in request payload");
+                res.headers().set(HeaderNames.CONTENT_TYPE, "application/json");
+                res.status(400).send(JSON.writeValueAsString(err));
+                return;
+            }
+
+            Job job = JobManager.start(j -> createEntities(j, service, entityKey, entities));
+
+            ObjectNode result = JSON.createObjectNode();
+            result.put("jobId", job.getId());
+            result.put("status", job.getStatus().name());
+            res.headers().set(HeaderNames.CONTENT_TYPE, "application/json");
+            res.status(202).send(JSON.writeValueAsString(result));
+        } catch (Exception e) {
+            try {
+                ObjectNode err = JSON.createObjectNode();
+                err.put("error", rootCauseMessage(e));
+                res.headers().set(HeaderNames.CONTENT_TYPE, "application/json");
+                res.status(500).send(JSON.writeValueAsString(err));
+            } catch (Exception inner) {
+                sendErrorPage(res, "Failed to start create job", e);
             }
         }
     }
@@ -324,6 +366,88 @@ public class IndexApp {
             }
         }
         job.incrementCompletedQueries();
+    }
+
+    private static void createEntities(Job job, String service, String entityKey, JsonNode entities) throws IOException {
+        job.setCurrentLabel("Loading configuration");
+        RdpConfig sourceConfig = RdpConfigLoader.loadFromFile(Constants.RDP_SOURCE_CONFIG_FILE_PATH, RdpConfig.class);
+        requireConfig(sourceConfig, "source");
+
+        String createUrl = String.format(Constants.PLATFORM_CREATE_URL,
+                sourceConfig.getManageUrl(),
+                sourceConfig.getManagePort(),
+                sourceConfig.getTenantId(),
+                service);
+
+        int total = entities.size();
+        job.setTotalQueries(total);
+        job.appendLog("Creating " + total + " object(s) via " + service + " (key=" + entityKey + ")");
+        job.appendLog("URL: " + createUrl);
+
+        int i = 0;
+        for (JsonNode entity : entities) {
+            i++;
+            String id = JsonHelper.textAt(entity, "id", "entity-" + i);
+            String type = JsonHelper.textAt(entity, "type", "unknown");
+            String label = id + " (" + type + ")";
+            job.setCurrentLabel("Creating " + label + " [" + i + "/" + total + "]");
+            job.appendLog("→ create " + label);
+
+            ObjectNode createBody = JSON.createObjectNode();
+            createBody.set(entityKey, entity);
+            String payload;
+            try {
+                payload = JSON.writeValueAsString(createBody);
+            } catch (Exception e) {
+                ProcessResult r = ProcessResult.errored("failed to serialize entity: " + e.getMessage());
+                job.recordResult(id, r);
+                job.appendLog("✗ " + label + " — " + r.getMessage());
+                job.incrementCompletedQueries();
+                continue;
+            }
+
+            ProcessResult result;
+            try {
+                java.net.http.HttpResponse<String> response = RestHelper.sendPostRequest(createUrl, payload, sourceConfig.getHeaders());
+                result = parsePlatformCreateResponse(response, id);
+            } catch (IOException e) {
+                result = ProcessResult.errored("request failed: " + e.getMessage());
+            } catch (Exception e) {
+                result = ProcessResult.errored("unexpected error: " + rootCauseMessage(e));
+            }
+
+            job.recordResult(id, result);
+            if (result.getStatus() == ProcessResult.Status.ERRORED) {
+                job.appendLog("✗ " + label + " — " + result.getMessage());
+            } else {
+                job.appendLog("✓ " + label);
+            }
+            job.incrementCompletedQueries();
+        }
+    }
+
+    private static ProcessResult parsePlatformCreateResponse(java.net.http.HttpResponse<String> response, String id) {
+        if (response.statusCode() < 200 || response.statusCode() >= 300) {
+            return ProcessResult.errored("HTTP " + response.statusCode() + ": " + truncate(response.body()));
+        }
+        JsonNode parsed = JsonHelper.tryAsJson(response.body());
+        if (parsed == null) {
+            return ProcessResult.errored("non-JSON response (HTTP " + response.statusCode() + "): " + truncate(response.body()));
+        }
+        JsonNode respNode = parsed.get("response");
+        if (respNode == null) {
+            return ProcessResult.errored("unexpected response shape: " + truncate(response.body()));
+        }
+        String status = JsonHelper.textAt(respNode, "status", "");
+        JsonNode messages = respNode.at("/statusDetail/messages");
+        String firstMsg = (messages != null && messages.isArray() && !messages.isEmpty())
+                ? JsonHelper.textAt(messages.get(0), "message", "")
+                : "";
+        if ("success".equalsIgnoreCase(status)) {
+            return new ProcessResult(ProcessResult.Status.CREATED, firstMsg);
+        }
+        String detail = firstMsg.isBlank() ? ("status=" + status + ": " + truncate(response.body())) : firstMsg;
+        return ProcessResult.errored(detail);
     }
 
     private static void requireConfig(RdpConfig cfg, String label) {

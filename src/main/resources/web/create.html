@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RDP → ES · Platform Create</title>
+    <script>
+        (function () {
+            const stored = localStorage.getItem('rdp-theme');
+            if (stored === 'dark' || (!stored && window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+                document.documentElement.classList.add('dark');
+            }
+        })();
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = { darkMode: 'class' };
+    </script>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<header class="topbar">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between">
+        <a href="/" class="flex items-center gap-3">
+            <span class="brand-mark">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="icon"><path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 17l9 4 9-4"/><path d="M3 12l9 4 9-4"/></svg>
+            </span>
+            <span class="font-semibold tracking-tight text-lg">RDP <span class="opacity-50">→</span> ES</span>
+        </a>
+        <nav class="flex items-center gap-2">
+            <a href="/" class="btn btn-ghost px-3 py-2 text-sm">Dashboard</a>
+            <a href="/config" class="btn btn-ghost px-3 py-2 text-sm">Config</a>
+            <a href="/index" class="btn btn-ghost px-3 py-2 text-sm">Copy</a>
+            <a href="/create" class="btn btn-ghost px-3 py-2 text-sm" style="font-weight:600">Create</a>
+            <button id="themeToggle" class="btn btn-ghost px-3 py-2" onclick="RDP.toggleTheme()" aria-label="Toggle theme">
+                <svg id="icon-sun" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
+                <svg id="icon-moon" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+            </button>
+        </nav>
+    </div>
+</header>
+
+<main class="max-w-5xl mx-auto px-4 sm:px-6 py-10 fade-in">
+    <nav class="text-xs mb-4" style="color:var(--text-soft)">
+        <a href="/" class="hover:underline">Dashboard</a>
+        <span class="px-1">›</span>
+        <span>Platform Create</span>
+    </nav>
+
+    <!-- Config row -->
+    <section class="glass rounded-2xl p-6 mb-6">
+        <div class="flex items-start justify-between gap-4 flex-wrap mb-4">
+            <div>
+                <h1 class="text-2xl font-bold tracking-tight">Platform Create</h1>
+                <p class="text-sm mt-1" style="color:var(--text-soft)">Paste a <span class="code">entityservice/get</span> response and run one create per entity via the platform API.</p>
+            </div>
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+                <label for="serviceSelect" class="label">Service</label>
+                <select id="serviceSelect" class="field" onchange="onServiceChange()">
+                    <optgroup label="Entity — Data">
+                        <option value="entityappservice" data-key="entity" data-arr="entities">entityappservice</option>
+                    </optgroup>
+                    <optgroup label="Entity — Models">
+                        <option value="entitymodelservice" data-key="entity" data-arr="entityModels">entitymodelservice</option>
+                    </optgroup>
+                    <optgroup label="Entity — Governance">
+                        <option value="entitygovernservice" data-key="entity" data-arr="entities">entitygovernservice</option>
+                    </optgroup>
+                    <optgroup label="Generic Objects">
+                        <option value="genericobjectmanageservice" data-key="genericObject" data-arr="genericObjects">genericobjectmanageservice</option>
+                    </optgroup>
+                    <optgroup label="Requests">
+                        <option value="requestmanagementservice" data-key="requestObject" data-arr="requestObjects">requestmanagementservice</option>
+                    </optgroup>
+                    <optgroup label="Configuration">
+                        <option value="configurationservice" data-key="configObject" data-arr="configObjects">configurationservice</option>
+                    </optgroup>
+                    <optgroup label="Events">
+                        <option value="eventservice" data-key="event" data-arr="events">eventservice</option>
+                    </optgroup>
+                    <optgroup label="Schedules">
+                        <option value="schedulerservice" data-key="scheduleTask" data-arr="scheduleTasks">schedulerservice</option>
+                    </optgroup>
+                    <optgroup label="Notifications">
+                        <option value="notificationservice" data-key="notificationObject" data-arr="notificationObjects">notificationservice</option>
+                    </optgroup>
+                    <optgroup label="Other">
+                        <option value="rsConnectService" data-key="profile" data-arr="profiles">rsConnectService</option>
+                        <option value="cslintegrationservice" data-key="entity" data-arr="entities">cslintegrationservice</option>
+                        <option value="matchservice" data-key="entity" data-arr="entities">matchservice</option>
+                        <option value="adminservice" data-key="entity" data-arr="entities">adminservice</option>
+                    </optgroup>
+                </select>
+                <p class="helper">Platform service that handles the create. Use <span class="code">entityappservice</span> for entity data.</p>
+            </div>
+            <div>
+                <label class="label">Payload key / Response array key</label>
+                <div class="flex gap-2">
+                    <div class="flex-1">
+                        <input id="entityKeyInput" class="field font-mono text-sm" value="entity" placeholder="entity key">
+                        <p class="helper">JSON key wrapping each object in the POST body (auto-filled from service).</p>
+                    </div>
+                    <div class="flex-1">
+                        <input id="arrKeyInput" class="field font-mono text-sm" value="entities" placeholder="response array key">
+                        <p class="helper">Array key inside <span class="code">response.*</span> to read objects from.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Paste area -->
+    <section class="glass rounded-2xl p-8 mb-6">
+        <div class="flex items-start justify-between gap-4 flex-wrap mb-4">
+            <div>
+                <h2 class="text-xl font-semibold tracking-tight">Paste search response</h2>
+                <p class="text-sm mt-1" style="color:var(--text-soft)">Paste the full JSON from a platform <span class="code">/get</span> response. The tool reads <span class="code">response.&lt;arrayKey&gt;[]</span> based on the service selected above.</p>
+            </div>
+            <button class="btn btn-ghost text-sm" onclick="clearPaste()">Clear</button>
+        </div>
+
+        <textarea
+            id="responsePaste"
+            class="field font-mono text-xs w-full"
+            rows="14"
+            placeholder='{ "response": { "status": "success", "totalRecords": 10, "entities": [ { "id": "...", "type": "...", ... } ] } }'
+            oninput="onPasteChange()"
+            spellcheck="false"
+        ></textarea>
+
+        <div id="parseStatus" class="mt-3 hidden">
+            <div id="parseOk" class="hidden flex items-center gap-2 text-sm" style="color:#059669">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+                <span id="parseOkMsg"></span>
+            </div>
+            <div id="parseErr" class="hidden flex items-center gap-2 text-sm" style="color:#be123c">
+                <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+                <span id="parseErrMsg"></span>
+            </div>
+        </div>
+    </section>
+
+    <!-- Entity preview table -->
+    <section id="previewSection" class="glass rounded-2xl p-6 mb-6 hidden">
+        <h2 class="text-base font-semibold mb-3">Entities to create <span id="previewCount" class="text-xs font-normal ml-1" style="color:var(--text-soft)"></span></h2>
+        <div class="overflow-x-auto">
+            <table class="w-full text-xs">
+                <thead>
+                    <tr class="text-left" style="color:var(--text-soft); border-bottom:1px solid var(--card-ring)">
+                        <th class="pb-2 pr-4 font-medium">#</th>
+                        <th class="pb-2 pr-4 font-medium">ID</th>
+                        <th class="pb-2 pr-4 font-medium">Name</th>
+                        <th class="pb-2 font-medium">Type</th>
+                    </tr>
+                </thead>
+                <tbody id="previewBody" class="divide-y" style="border-color:var(--card-ring)"></tbody>
+            </table>
+        </div>
+    </section>
+
+    <div class="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+        <a href="/" class="btn btn-ghost">← Back to dashboard</a>
+        <button onclick="runCreate()" id="createBtn" class="btn btn-success" disabled>
+            <svg class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+            Create all
+        </button>
+    </div>
+</main>
+
+<!-- Progress modal (same structure as Copy page) -->
+<div id="progressBackdrop" class="hidden fixed inset-0 z-40 backdrop-blur-sm flex items-center justify-center p-4" style="background:rgba(2,6,23,0.55)">
+    <div class="glass rounded-2xl p-7 w-full max-w-xl fade-in" role="dialog" aria-labelledby="progressTitle" aria-live="polite">
+        <div class="flex items-center justify-between gap-3 mb-1">
+            <div class="flex items-center gap-3">
+                <span id="progressSpinner" class="spinner" style="color:var(--accent)"></span>
+                <h2 id="progressTitle" class="text-xl font-bold tracking-tight">Starting create job…</h2>
+            </div>
+            <span id="progressElapsed" class="text-xs" style="color:var(--text-soft)">0.0s</span>
+        </div>
+        <p id="progressLabel" class="text-sm code break-all mt-2 mb-4" style="color:var(--text-soft)">Preparing…</p>
+
+        <div class="w-full h-2.5 rounded-full overflow-hidden" style="background:rgba(99,102,241,0.12)">
+            <div id="progressBar" class="h-full rounded-full"
+                 style="width:0%;background:linear-gradient(90deg,#7c3aed,#06b6d4); transition: width 0.35s ease"></div>
+        </div>
+        <p id="progressCount" class="text-xs mt-2" style="color:var(--text-soft)">0 / 0 entities</p>
+
+        <div class="grid grid-cols-2 gap-2 mt-4">
+            <div class="text-center p-2 rounded-lg" style="background:rgba(16,185,129,0.10)">
+                <p class="text-[0.65rem] uppercase tracking-wide" style="color:var(--text-soft)">Created</p>
+                <p id="progressCreated" class="text-base font-bold" style="color:#059669">0</p>
+            </div>
+            <div class="text-center p-2 rounded-lg" style="background:rgba(244,63,94,0.10)">
+                <p class="text-[0.65rem] uppercase tracking-wide" style="color:var(--text-soft)">Errored</p>
+                <p id="progressErrored" class="text-base font-bold" style="color:#be123c">0</p>
+            </div>
+        </div>
+
+        <details class="mt-4" open>
+            <summary class="cursor-pointer text-xs font-medium" style="color:var(--text-soft)">Activity log</summary>
+            <div id="progressLog"
+                 class="mt-2 max-h-48 overflow-auto code text-xs space-y-1 p-3 rounded-lg scroll-pretty"
+                 style="background:rgba(15,23,42,0.06); border:1px solid var(--card-ring)"></div>
+        </details>
+
+        <div id="progressFatal" class="hidden mt-4 p-3 rounded-lg text-sm" style="background:rgba(244,63,94,0.10); border:1px solid rgba(244,63,94,0.35); color:#be123c"></div>
+
+        <div class="mt-5 flex justify-end gap-2">
+            <button id="progressCancel" class="btn btn-ghost" onclick="hideProgress()">Close</button>
+            <a id="progressView" href="/results" class="btn btn-primary hidden">View results →</a>
+        </div>
+    </div>
+</div>
+
+<script src="/app.js"></script>
+<script>
+    let parsedEntities = null;
+    let pollTimer = null;
+    let renderedLogLines = 0;
+
+    function onServiceChange() {
+        const sel = document.getElementById('serviceSelect');
+        const opt = sel.options[sel.selectedIndex];
+        const key = opt.dataset.key || 'entity';
+        const arr = opt.dataset.arr || 'entities';
+        document.getElementById('entityKeyInput').value = key;
+        document.getElementById('arrKeyInput').value = arr;
+        // Re-parse if we already have content
+        if (document.getElementById('responsePaste').value.trim()) {
+            onPasteChange();
+        }
+    }
+
+    function onPasteChange() {
+        const raw = document.getElementById('responsePaste').value.trim();
+        const statusEl = document.getElementById('parseStatus');
+        const okEl = document.getElementById('parseOk');
+        const errEl = document.getElementById('parseErr');
+        const previewSection = document.getElementById('previewSection');
+        const createBtn = document.getElementById('createBtn');
+        const arrKey = document.getElementById('arrKeyInput').value.trim() || 'entities';
+
+        parsedEntities = null;
+        okEl.classList.add('hidden');
+        errEl.classList.add('hidden');
+        previewSection.classList.add('hidden');
+        createBtn.disabled = true;
+
+        if (!raw) {
+            statusEl.classList.add('hidden');
+            return;
+        }
+
+        statusEl.classList.remove('hidden');
+
+        let parsed;
+        try {
+            parsed = JSON.parse(raw);
+        } catch (e) {
+            errEl.classList.remove('hidden');
+            document.getElementById('parseErrMsg').textContent = 'Invalid JSON: ' + e.message;
+            return;
+        }
+
+        // Try configured key first, then fall back to common alternatives
+        let entities = null;
+        const attempts = [arrKey, 'entities', 'genericObjects', 'requestObjects', 'configObjects', 'events', 'scheduleTasks'];
+        for (const k of attempts) {
+            if (parsed.response && Array.isArray(parsed.response[k]) && parsed.response[k].length > 0) {
+                entities = parsed.response[k];
+                if (k !== arrKey) document.getElementById('arrKeyInput').value = k;
+                break;
+            }
+            if (Array.isArray(parsed[k]) && parsed[k].length > 0) {
+                entities = parsed[k];
+                if (k !== arrKey) document.getElementById('arrKeyInput').value = k;
+                break;
+            }
+        }
+        if (!entities && Array.isArray(parsed)) {
+            entities = parsed;
+        }
+
+        if (!entities || entities.length === 0) {
+            errEl.classList.remove('hidden');
+            document.getElementById('parseErrMsg').textContent =
+                'No objects found under response.' + arrKey + '[] (or any common alternative). Check the array key field above.';
+            return;
+        }
+
+        parsedEntities = entities;
+        okEl.classList.remove('hidden');
+        document.getElementById('parseOkMsg').textContent = entities.length + ' object(s) found — ready to create.';
+
+        // Build preview table
+        document.getElementById('previewCount').textContent = '(' + entities.length + ')';
+        const tbody = document.getElementById('previewBody');
+        tbody.innerHTML = '';
+        entities.forEach((e, i) => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `
+                <td class="py-2 pr-4 code" style="color:var(--text-soft)">${i + 1}</td>
+                <td class="py-2 pr-4 code break-all" style="max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${RDP.escape(e.id || '—')}</td>
+                <td class="py-2 pr-4" style="color:var(--text-soft)">${RDP.escape(e.name || '—')}</td>
+                <td class="py-2 code">${RDP.escape(e.type || '—')}</td>
+            `;
+            tbody.appendChild(tr);
+        });
+        previewSection.classList.remove('hidden');
+        createBtn.disabled = false;
+    }
+
+    function clearPaste() {
+        document.getElementById('responsePaste').value = '';
+        onPasteChange();
+    }
+
+    function showProgress() {
+        renderedLogLines = 0;
+        const backdrop = document.getElementById('progressBackdrop');
+        backdrop.classList.remove('hidden');
+        document.getElementById('progressView').classList.add('hidden');
+        document.getElementById('progressFatal').classList.add('hidden');
+        document.getElementById('progressFatal').textContent = '';
+        document.getElementById('progressLog').innerHTML = '';
+        document.getElementById('progressTitle').textContent = 'Starting create job…';
+        document.getElementById('progressLabel').textContent = 'Preparing…';
+        document.getElementById('progressBar').style.width = '0%';
+        document.getElementById('progressBar').style.background = 'linear-gradient(90deg,#7c3aed,#06b6d4)';
+        document.getElementById('progressCount').textContent = '0 / 0 entities';
+        document.getElementById('progressCreated').textContent = '0';
+        document.getElementById('progressErrored').textContent = '0';
+        document.getElementById('progressSpinner').style.display = 'inline-block';
+        document.getElementById('progressCancel').textContent = 'Cancel';
+    }
+
+    function hideProgress() {
+        if (pollTimer) { clearTimeout(pollTimer); pollTimer = null; }
+        document.getElementById('progressBackdrop').classList.add('hidden');
+    }
+
+    function fmtElapsed(ms) {
+        if (!ms || ms < 0) return '0.0s';
+        if (ms < 60000) return (ms / 1000).toFixed(1) + 's';
+        const m = Math.floor(ms / 60000);
+        const s = Math.floor((ms % 60000) / 1000);
+        return m + 'm ' + s + 's';
+    }
+
+    function renderProgress(p) {
+        const total = p.totalQueries || 0;
+        const done = p.completedQueries || 0;
+        const pct = total > 0 ? Math.min(100, (done / total) * 100) : (p.status === 'DONE' ? 100 : 5);
+        document.getElementById('progressBar').style.width = pct + '%';
+        document.getElementById('progressLabel').textContent = p.currentLabel || '…';
+        document.getElementById('progressCount').textContent = (p.docsProcessed || 0) + ' entities · ' + done + '/' + total;
+        document.getElementById('progressElapsed').textContent = fmtElapsed(p.elapsedMs);
+        document.getElementById('progressCreated').textContent = p.docsCreated || 0;
+        document.getElementById('progressErrored').textContent = p.docsErrored || 0;
+
+        if (Array.isArray(p.log)) {
+            const logEl = document.getElementById('progressLog');
+            for (let i = renderedLogLines; i < p.log.length; i++) {
+                const line = document.createElement('div');
+                const text = String(p.log[i]);
+                line.textContent = text;
+                if (text.startsWith('✗') || text.startsWith('FATAL')) line.style.color = '#be123c';
+                else if (text.startsWith('✓')) line.style.color = '#059669';
+                else if (text.startsWith('→')) line.style.color = 'var(--text-soft)';
+                logEl.appendChild(line);
+            }
+            renderedLogLines = p.log.length;
+            logEl.scrollTop = logEl.scrollHeight;
+        }
+
+        if (p.status === 'RUNNING' || p.status === 'PENDING') {
+            document.getElementById('progressTitle').textContent = 'Creating entities…';
+        } else if (p.status === 'DONE') {
+            document.getElementById('progressTitle').textContent = 'Create job complete';
+            document.getElementById('progressSpinner').style.display = 'none';
+            document.getElementById('progressBar').style.width = '100%';
+            document.getElementById('progressCancel').textContent = 'Close';
+            document.getElementById('progressView').classList.remove('hidden');
+            const errs = p.docsErrored || 0;
+            RDP.toast(errs > 0 ? ('Finished with ' + errs + ' error(s).') : 'All entities created successfully.', errs > 0 ? 'error' : 'success');
+        } else if (p.status === 'FAILED') {
+            document.getElementById('progressTitle').textContent = 'Create job failed';
+            document.getElementById('progressSpinner').style.display = 'none';
+            document.getElementById('progressBar').style.background = 'linear-gradient(90deg,#f43f5e,#fb7185)';
+            document.getElementById('progressBar').style.width = '100%';
+            if (p.fatalError) {
+                const fb = document.getElementById('progressFatal');
+                fb.classList.remove('hidden');
+                fb.textContent = p.fatalError;
+            }
+            document.getElementById('progressCancel').textContent = 'Close';
+            document.getElementById('progressView').classList.remove('hidden');
+        }
+    }
+
+    async function pollProgress() {
+        try {
+            const r = await fetch('/progress', { cache: 'no-store' });
+            if (r.ok) {
+                const p = await r.json();
+                renderProgress(p);
+                if (p.status === 'DONE' || p.status === 'FAILED') return;
+            }
+        } catch (e) { /* transient — keep polling */ }
+        pollTimer = setTimeout(pollProgress, 700);
+    }
+
+    async function runCreate() {
+        if (!parsedEntities || parsedEntities.length === 0) {
+            RDP.toast('Paste a valid search response first.', 'error');
+            return;
+        }
+
+        const service = document.getElementById('serviceSelect').value;
+        const entityKey = document.getElementById('entityKeyInput').value.trim() || 'entity';
+
+        const btn = document.getElementById('createBtn');
+        RDP.setLoading(btn, true, 'Starting…');
+        showProgress();
+
+        try {
+            const response = await fetch('/create-entities', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ service, entityKey, entities: parsedEntities })
+            });
+            if (!response.ok && response.status !== 202) {
+                let detail = '';
+                try { detail = (await response.json()).error || ''; } catch (_) {}
+                throw new Error(detail || ('Server returned HTTP ' + response.status));
+            }
+            pollProgress();
+        } catch (err) {
+            RDP.toast(err.message || 'Failed to start the create job.', 'error');
+            hideProgress();
+        } finally {
+            RDP.setLoading(btn, false);
+        }
+    }
+</script>
+</body>
+</html>

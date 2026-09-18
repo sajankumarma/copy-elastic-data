@@ -40,6 +40,7 @@ public class HtmlHelper {
                     <a href="/" class="btn btn-ghost px-3 py-2 text-sm">Dashboard</a>
                     <a href="/config" class="btn btn-ghost px-3 py-2 text-sm">Config</a>
                     <a href="/index" class="btn btn-ghost px-3 py-2 text-sm">Copy</a>
+                    <a href="/create" class="btn btn-ghost px-3 py-2 text-sm">Create</a>
                     <button id="themeToggle" class="btn btn-ghost px-3 py-2" onclick="RDP.toggleTheme()" aria-label="Toggle theme">
                       <svg id="icon-sun" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="display:none"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41"/></svg>
                       <svg id="icon-moon" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
