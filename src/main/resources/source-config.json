@@ -1,7 +1,7 @@
 {
-  "manageUrl" : "http://manage.rdpenggqa7.riversand-dataplatform.com",
-  "managePort" : "8085",
-  "tenantId" : "rwtestqa7",
+  "manageUrl" : "http://pimapiproxy.syndigo.com",
+  "managePort" : "8000",
+  "tenantId" : "rdpprna26/ecolabuat",
   "headers" : {
     "x-rdp-version" : 8.1,
     "x-rdp-clientId" : "rdpclient",

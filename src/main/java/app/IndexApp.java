@@ -26,11 +26,19 @@ import java.io.IOException;
 import java.net.http.HttpResponse;
 import java.nio.file.Files;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 public class IndexApp {
     private static final ObjectMapper JSON = new ObjectMapper();
+    private static final int PAGE_SIZE = 5_000;        // docs per from/size fetch page
+    private static final int BATCH_PARALLELISM = 8;   // concurrent type workers
 
     public static void main(String[] args) {
         Config config = Config.create();
@@ -167,6 +175,7 @@ public class IndexApp {
             body.put("currentLabel", job.getCurrentLabel());
             body.put("totalQueries", job.getTotalQueries());
             body.put("completedQueries", job.getCompletedQueries());
+            body.put("totalDocs", job.getTotalDocs());
             body.put("docsProcessed", job.getDocsProcessed());
             body.put("docsCreated", job.getDocsCreated());
             body.put("docsUpdated", job.getDocsUpdated());
@@ -241,48 +250,318 @@ public class IndexApp {
             return;
         }
 
-        int totalQueries = countQueries(indexData);
-        job.setTotalQueries(totalQueries);
-        job.appendLog("Planned " + totalQueries + " source queries across " + indexData.getIndexes().size() + " index(es)");
+        // Phase 1: count every type/all so the progress bar has an accurate total
+        job.setCurrentLabel("Counting documents…");
+        job.appendLog("Phase 1 — counting across " + indexData.getIndexes().size() + " index(es)");
+
+        record BatchWork(String sourceIndex, String targetIndex, String type /* null = all */, long totalDocs) {}
+        List<BatchWork> batchWork = new ArrayList<>();
+        int idQueryCount = 0;
 
         for (IndexConfig.Index index : indexData.getIndexes()) {
             String indexName = index.getIndexName();
-            String sourceTenantIdString = sourceConfig.getTenantId();
-            String sourceTenantId = sourceTenantIdString.contains("/") ? sourceTenantIdString.split("/")[1] : sourceTenantIdString;
-            String sourceIndex = sourceTenantId + readIndexOf(indexName);
+            String srcTenantId = sourceConfig.getTenantId();
+            srcTenantId = srcTenantId.contains("/") ? srcTenantId.split("/")[1] : srcTenantId;
+            String sourceIndex = srcTenantId + readIndexOf(indexName);
             String targetIndex = targetConfig.getTenantId() + "_" + indexName;
 
+            if (index.isCopyAll()) {
+                long total = fetchCount(job, esSearchUrl, QueryHelper.generateCountQuery(sourceIndex),
+                        sourceConfig.getHeaders(), indexName + " (all)");
+                if (total < 0) continue;
+                job.appendLog("  " + indexName + " (all): " + total + " docs");
+                job.addTotalDocs(total);
+                batchWork.add(new BatchWork(sourceIndex, targetIndex, null, total));
+                continue;
+            }
+
             if (index.getDataObjectTypes() != null) {
-                for (String dataObjectType : index.getDataObjectTypes()) {
-                    String payload = QueryHelper.generateTypeSearchQuery(sourceIndex, dataObjectType);
-                    String label = indexName + "/" + dataObjectType;
-                    runQuery(job, payload, targetIndex, null, sourceConfig, targetConfig, esSearchUrl, label);
+                for (String type : index.getDataObjectTypes()) {
+                    long total = fetchCount(job, esSearchUrl,
+                            QueryHelper.generateCountQueryByType(sourceIndex, type),
+                            sourceConfig.getHeaders(), indexName + "/" + type);
+                    if (total < 0) continue;
+                    job.appendLog("  " + indexName + "/" + type + ": " + total + " docs");
+                    job.addTotalDocs(total);
+                    int batches = total == 0 ? 0 : (int) Math.ceil((double) total / PAGE_SIZE);
+                    job.addTotalQueries(batches);
+                    batchWork.add(new BatchWork(sourceIndex, targetIndex, type, total));
                 }
             }
 
             if (index.getDataObjects() != null) {
-                for (IndexConfig.DataObject dataObjectId : index.getDataObjects()) {
-                    if (dataObjectId.getIds() == null) continue;
-                    for (String id : dataObjectId.getIds()) {
+                for (IndexConfig.DataObject doi : index.getDataObjects()) {
+                    if (doi.getIds() == null) continue;
+                    idQueryCount += doi.getIds().size();
+                }
+            }
+        }
+
+        job.addTotalQueries(idQueryCount);
+        job.addTotalDocs(idQueryCount);
+        job.appendLog("Phase 1 done — " + job.getTotalDocs() + " total doc(s), " + idQueryCount + " ID lookup(s) planned");
+
+        // Phase 2: type-sharded parallel copy (agg → types → parallel workers)
+        job.appendLog("Phase 2 — pageSize=" + PAGE_SIZE + ", workers=" + BATCH_PARALLELISM);
+        ExecutorService pushPool = Executors.newFixedThreadPool(BATCH_PARALLELISM);
+
+        try {
+            for (BatchWork work : batchWork) {
+                runBatchedPush(job, esSearchUrl, work.sourceIndex(), work.targetIndex(),
+                        work.type(), work.totalDocs(), sourceConfig, targetConfig, pushPool);
+            }
+
+            // ID lookups (unchanged behaviour)
+            for (IndexConfig.Index index : indexData.getIndexes()) {
+                if (index.getDataObjects() == null) continue;
+                String indexName = index.getIndexName();
+                String srcTenantId = sourceConfig.getTenantId();
+                srcTenantId = srcTenantId.contains("/") ? srcTenantId.split("/")[1] : srcTenantId;
+                String sourceIndex = srcTenantId + readIndexOf(indexName);
+                String targetIndex = targetConfig.getTenantId() + "_" + indexName;
+                for (IndexConfig.DataObject doi : index.getDataObjects()) {
+                    if (doi.getIds() == null) continue;
+                    for (String id : doi.getIds()) {
                         String payload = QueryHelper.generateIdSearchQuery(id, sourceIndex);
                         runQuery(job, payload, targetIndex, id, sourceConfig, targetConfig, esSearchUrl, indexName + "/" + id);
                     }
                 }
             }
+        } finally {
+            pushPool.shutdown();
+            try { pushPool.awaitTermination(10, TimeUnit.MINUTES); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
         }
     }
 
-    private static int countQueries(IndexConfig indexData) {
-        int count = 0;
-        for (IndexConfig.Index index : indexData.getIndexes()) {
-            if (index.getDataObjectTypes() != null) count += index.getDataObjectTypes().size();
-            if (index.getDataObjects() != null) {
-                for (IndexConfig.DataObject doi : index.getDataObjects()) {
-                    if (doi.getIds() != null) count += doi.getIds().size();
-                }
+    private static long fetchCount(Job job, String esSearchUrl, String countPayload,
+                                   Map<String, String> headers, String label) {
+        job.setCurrentLabel("Counting " + label);
+        try {
+            HttpResponse<String> r = RestHelper.sendPostRequest(esSearchUrl, countPayload, headers);
+            if (r.statusCode() != 200) {
+                job.appendLog("✗ count " + label + " — HTTP " + r.statusCode());
+                return -1;
+            }
+            return JsonHelper.extractTotalHitsFromJson(r.body());
+        } catch (Exception e) {
+            job.appendLog("✗ count " + label + " — " + e.getMessage());
+            return -1;
+        }
+    }
+
+    /**
+     * For copyAll (type==null): shards by first letter of the 'id' field (a-z).
+     * adminservice strips 'sort' and 'aggs', but prefix queries work fine.
+     * Each letter bucket has ≤27k docs in practice — safely under the 30k ceiling.
+     * For a specific type: runs from/size pages directly in batchPool.
+     */
+    private static void runBatchedPush(Job job, String esSearchUrl, String sourceIndex, String targetIndex,
+                                       String type, long totalDocs,
+                                       RdpConfig sourceConfig, RdpConfig targetConfig,
+                                       ExecutorService batchPool) {
+        String label = sourceIndex + (type != null ? "/" + type : " (all)");
+        if (totalDocs == 0) {
+            job.appendLog("· " + label + " — 0 docs, skipping");
+            return;
+        }
+
+        if (type == null) {
+            // copyAll — shard by first letter of 'id' field (a-z) to stay under 30k per query
+            job.appendLog("  copyAll — sharding " + sourceIndex + " by id prefix (a-z), " + totalDocs + " total docs");
+            List<Future<?>> futures = new ArrayList<>();
+            for (char c = 'a'; c <= 'z'; c++) {
+                final String prefix = String.valueOf(c);
+                futures.add(batchPool.submit(() ->
+                        copyIdPrefixPages(job, esSearchUrl, sourceIndex, targetIndex, prefix, sourceConfig, targetConfig)
+                ));
+            }
+            for (Future<?> f : futures) {
+                try { f.get(); } catch (Exception ignored) { }
+            }
+        } else {
+            // specific type — submit as a single worker task
+            List<Future<?>> futures = new ArrayList<>();
+            futures.add(batchPool.submit(() ->
+                    copyTypePages(job, esSearchUrl, sourceIndex, targetIndex, type, totalDocs, sourceConfig, targetConfig)
+            ));
+            for (Future<?> f : futures) {
+                try { f.get(); } catch (Exception ignored) { }
             }
         }
-        return count;
+    }
+
+    private static final int PREFIX_SAFE_LIMIT = 25_000;
+    private static final int PREFIX_MAX_DEPTH  = 5;
+
+    /** Fetches all docs whose 'id' starts with idPrefix.
+     *  Counts first; if the bucket exceeds PREFIX_SAFE_LIMIT it sub-shards by the next character
+     *  (up to PREFIX_MAX_DEPTH levels deep) so no single query ever approaches max_result_window. */
+    private static void copyIdPrefixPages(Job job, String esSearchUrl, String sourceIndex, String targetIndex,
+                                          String idPrefix,
+                                          RdpConfig sourceConfig, RdpConfig targetConfig) {
+        copyIdPrefixPages(job, esSearchUrl, sourceIndex, targetIndex, idPrefix, sourceConfig, targetConfig, 1);
+    }
+
+    private static void copyIdPrefixPages(Job job, String esSearchUrl, String sourceIndex, String targetIndex,
+                                          String idPrefix,
+                                          RdpConfig sourceConfig, RdpConfig targetConfig, int depth) {
+        // Count first to decide whether to sub-shard or copy directly
+        long count;
+        try {
+            String countPayload = QueryHelper.generateIdPrefixCountQuery(sourceIndex, idPrefix);
+            HttpResponse<String> cr = RestHelper.sendPostRequest(esSearchUrl, countPayload, sourceConfig.getHeaders());
+            count = cr.statusCode() == 200 ? JsonHelper.extractTotalHitsFromJson(cr.body()) : -1;
+        } catch (Exception e) {
+            count = -1;
+        }
+
+        if (count == 0) return; // nothing here
+
+        if (count > PREFIX_SAFE_LIMIT && depth < PREFIX_MAX_DEPTH) {
+            job.appendLog("  [id:" + idPrefix + "*] has " + count + " docs — sub-sharding to 2-char prefixes");
+            for (char c = 'a'; c <= 'z'; c++) {
+                copyIdPrefixPages(job, esSearchUrl, sourceIndex, targetIndex, idPrefix + c, sourceConfig, targetConfig, depth + 1);
+            }
+            for (char d = '0'; d <= '9'; d++) {
+                copyIdPrefixPages(job, esSearchUrl, sourceIndex, targetIndex, idPrefix + d, sourceConfig, targetConfig, depth + 1);
+            }
+            return;
+        }
+
+        String label = sourceIndex + "[id:" + idPrefix + "*]";
+        int from = 0;
+        int page = 0;
+        while (true) {
+            page++;
+            String payload = QueryHelper.generateIdPrefixDocsBatch(sourceIndex, idPrefix, from, PAGE_SIZE);
+            job.setCurrentLabel("Copying " + label + " [page " + page + "]");
+
+            HttpResponse<String> response;
+            try {
+                response = RestHelper.sendPostRequest(esSearchUrl, payload, sourceConfig.getHeaders());
+            } catch (IOException e) {
+                job.appendLog("✗ " + label + " page " + page + " — " + e.getMessage());
+                job.incrementCompletedQueries();
+                break;
+            }
+            if (response.statusCode() != 200) {
+                job.appendLog("✗ " + label + " page " + page + " — HTTP " + response.statusCode());
+                job.incrementCompletedQueries();
+                break;
+            }
+
+            JsonNode hits;
+            try {
+                hits = JsonHelper.extractHitsSectionFromJson(response.body());
+            } catch (Exception e) {
+                job.appendLog("✗ " + label + " page " + page + " parse error — " + e.getMessage());
+                job.incrementCompletedQueries();
+                break;
+            }
+
+            if (hits == null || !hits.isArray() || hits.isEmpty()) {
+                if (from > 0) job.appendLog("· " + label + " — done (" + from + " docs)");
+                break;
+            }
+
+            from += hits.size();
+
+            for (JsonNode hit : hits) {
+                String docId = JsonHelper.textAt(hit, "_id", "(unknown)");
+                String postUrl = RestHelper.buildPostUrl(targetConfig, targetIndex, docId);
+                ProcessResult result;
+                try {
+                    String body = JsonHelper.prepareObjectForTarget(hit, sourceConfig, targetConfig);
+                    HttpResponse<String> postResp = RestHelper.sendPostRequest(postUrl, body, targetConfig.getHeaders());
+                    if (postResp.statusCode() >= 200 && postResp.statusCode() < 300) {
+                        JsonNode parsed = JsonHelper.tryAsJson(postResp.body());
+                        String resultText = JsonHelper.textAt(parsed, "result", null);
+                        result = resultText != null ? ProcessResult.fromEsResult(resultText)
+                                : ProcessResult.errored("no 'result' field: " + truncate(postResp.body()));
+                    } else {
+                        result = ProcessResult.errored("target ES HTTP " + postResp.statusCode() + ": " + truncate(postResp.body()));
+                    }
+                } catch (Exception e) {
+                    result = ProcessResult.errored("push failed: " + rootCauseMessage(e));
+                }
+                job.recordResult(docId, result);
+                if (result.getStatus() == ProcessResult.Status.ERRORED) {
+                    job.appendLog("✗ " + docId + " — " + result.getMessage());
+                }
+            }
+            job.incrementCompletedQueries();
+        }
+    }
+
+    /** Fetches all docs of one type using from/size pages and pushes each to target. */
+    private static void copyTypePages(Job job, String esSearchUrl, String sourceIndex, String targetIndex,
+                                      String type, long totalDocs,
+                                      RdpConfig sourceConfig, RdpConfig targetConfig) {
+        String label = sourceIndex + "/" + type;
+        int from = 0;
+        int page = 0;
+        while (from < totalDocs) {
+            page++;
+            int size = (int) Math.min(PAGE_SIZE, totalDocs - from);
+            String payload = QueryHelper.generateTypeDocsBatch(sourceIndex, type, from, size);
+            job.setCurrentLabel("Copying " + label + " [page " + page + ", from=" + from + "]");
+
+            HttpResponse<String> response;
+            try {
+                response = RestHelper.sendPostRequest(esSearchUrl, payload, sourceConfig.getHeaders());
+            } catch (IOException e) {
+                job.appendLog("✗ " + label + " page " + page + " — " + e.getMessage());
+                job.incrementCompletedQueries();
+                break;
+            }
+            if (response.statusCode() != 200) {
+                job.appendLog("✗ " + label + " page " + page + " — HTTP " + response.statusCode());
+                job.incrementCompletedQueries();
+                break;
+            }
+
+            JsonNode hits;
+            try {
+                hits = JsonHelper.extractHitsSectionFromJson(response.body());
+            } catch (Exception e) {
+                job.appendLog("✗ " + label + " page " + page + " parse error — " + e.getMessage());
+                job.incrementCompletedQueries();
+                break;
+            }
+
+            if (hits == null || !hits.isArray() || hits.isEmpty()) {
+                job.appendLog("· " + label + " page " + page + " — no more docs");
+                job.incrementCompletedQueries();
+                break;
+            }
+
+            from += hits.size();
+
+            for (JsonNode hit : hits) {
+                String docId = JsonHelper.textAt(hit, "_id", "(unknown)");
+                String postUrl = RestHelper.buildPostUrl(targetConfig, targetIndex, docId);
+                ProcessResult result;
+                try {
+                    String body = JsonHelper.prepareObjectForTarget(hit, sourceConfig, targetConfig);
+                    HttpResponse<String> postResp = RestHelper.sendPostRequest(postUrl, body, targetConfig.getHeaders());
+                    if (postResp.statusCode() >= 200 && postResp.statusCode() < 300) {
+                        JsonNode parsed = JsonHelper.tryAsJson(postResp.body());
+                        String resultText = JsonHelper.textAt(parsed, "result", null);
+                        result = resultText != null ? ProcessResult.fromEsResult(resultText)
+                                : ProcessResult.errored("no 'result' field: " + truncate(postResp.body()));
+                    } else {
+                        result = ProcessResult.errored("target ES HTTP " + postResp.statusCode() + ": " + truncate(postResp.body()));
+                    }
+                } catch (Exception e) {
+                    result = ProcessResult.errored("push failed: " + rootCauseMessage(e));
+                }
+                job.recordResult(docId, result);
+                if (result.getStatus() == ProcessResult.Status.ERRORED) {
+                    job.appendLog("✗ " + docId + " — " + result.getMessage());
+                }
+            }
+            job.incrementCompletedQueries();
+        }
     }
 
     private static void runQuery(Job job, String payload, String targetIndex, String optionalId,

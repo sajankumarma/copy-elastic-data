@@ -3,6 +3,7 @@ package objects;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -22,6 +23,7 @@ public class Job {
     private volatile String currentLabel = "Preparing...";
     private final AtomicInteger totalQueries = new AtomicInteger(0);
     private final AtomicInteger completedQueries = new AtomicInteger(0);
+    private final AtomicLong totalDocs = new AtomicLong(0);
     private final AtomicInteger docsProcessed = new AtomicInteger(0);
     private final AtomicInteger docsCreated = new AtomicInteger(0);
     private final AtomicInteger docsUpdated = new AtomicInteger(0);
@@ -40,8 +42,11 @@ public class Job {
     public void setCurrentLabel(String label) { this.currentLabel = label == null ? "" : label; }
     public int getTotalQueries() { return totalQueries.get(); }
     public void setTotalQueries(int n) { totalQueries.set(Math.max(0, n)); }
+    public void addTotalQueries(int n) { if (n > 0) totalQueries.addAndGet(n); }
     public int getCompletedQueries() { return completedQueries.get(); }
     public int incrementCompletedQueries() { return completedQueries.incrementAndGet(); }
+    public long getTotalDocs() { return totalDocs.get(); }
+    public void addTotalDocs(long n) { if (n > 0) totalDocs.addAndGet(n); }
     public int getDocsProcessed() { return docsProcessed.get(); }
     public int getDocsCreated() { return docsCreated.get(); }
     public int getDocsUpdated() { return docsUpdated.get(); }

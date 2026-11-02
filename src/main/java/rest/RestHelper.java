@@ -18,7 +18,7 @@ import objects.RdpConfig;
 
 public class RestHelper {
    private static final Duration CONNECT_TIMEOUT = Duration.ofSeconds(5);
-   private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(30);
+   private static final Duration REQUEST_TIMEOUT = Duration.ofSeconds(120);
 
    private static final HttpClient client = HttpClient.newBuilder()
          .connectTimeout(CONNECT_TIMEOUT)

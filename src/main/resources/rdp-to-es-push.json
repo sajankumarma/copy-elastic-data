@@ -1,10 +1,11 @@
 {
   "indexes" : [ {
-    "indexName" : "entitymanagemodelindex",
+    "indexName" : "entityindex",
+    "copyAll" : false,
     "dataObjectTypes" : [ ],
     "dataObjects" : [ {
-      "dataObjectType" : "authorizationModel",
-      "ids" : [ "sku_admin_authorizationModel" ]
+      "dataObjectType" : "customerSite",
+      "ids" : [ "29__GVlDRqmJMZ9pUPoFIA" ]
     } ]
   } ]
 }

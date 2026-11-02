@@ -10,6 +10,9 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 public class JsonHelper {
    private static final ObjectMapper mapper = new ObjectMapper();
@@ -36,6 +39,70 @@ public class JsonHelper {
       JsonNode root = asJson(responseBody);
       JsonNode hits = root.at("/response/adminObjects/0/data/jsonData/hits/hits");
       return (hits.isMissingNode() || hits.isNull()) ? null : hits;
+   }
+
+   public static long extractTotalHitsFromJson(String responseBody) throws JsonProcessingException {
+      JsonNode root = asJson(responseBody);
+      JsonNode totalNode = root.at("/response/adminObjects/0/data/jsonData/hits/total/value");
+      if (!totalNode.isMissingNode() && !totalNode.isNull()) {
+         return totalNode.longValue();
+      }
+      // Older ES: total is a plain number
+      JsonNode totalLegacy = root.at("/response/adminObjects/0/data/jsonData/hits/total");
+      if (!totalLegacy.isMissingNode() && !totalLegacy.isNull() && totalLegacy.isNumber()) {
+         return totalLegacy.longValue();
+      }
+      return 0;
+   }
+
+   /** Parses the terms aggregation buckets from an essearch response.
+    *  Returns a list of (typeName, docCount) pairs. */
+   public static List<Map.Entry<String, Long>> extractTypesFromAggregation(String responseBody) throws JsonProcessingException {
+      List<Map.Entry<String, Long>> result = new ArrayList<>();
+      JsonNode root = asJson(responseBody);
+      JsonNode buckets = root.at("/response/adminObjects/0/data/jsonData/aggregations/types/buckets");
+      if (buckets.isMissingNode() || !buckets.isArray()) return result;
+      for (JsonNode bucket : buckets) {
+         String key = bucket.path("key").asText(null);
+         long count = bucket.path("doc_count").asLong(0);
+         if (key != null && count > 0) {
+            result.add(Map.entry(key, count));
+         }
+      }
+      return result;
+   }
+
+   public static List<String> extractIdsFromHits(JsonNode hits) {
+      List<String> ids = new ArrayList<>();
+      if (hits == null || !hits.isArray()) return ids;
+      for (JsonNode hit : hits) {
+         JsonNode id = hit.get("_id");
+         if (id != null && !id.isNull()) ids.add(id.asText());
+      }
+      return ids;
+   }
+
+   public static String extractSearchAfterValueFromLastHit(JsonNode hits) {
+      if (hits == null || !hits.isArray() || hits.isEmpty()) return null;
+      JsonNode lastHit = hits.get(hits.size() - 1);
+      JsonNode sortArr = lastHit.get("sort");
+      if (sortArr != null && sortArr.isArray() && !sortArr.isEmpty()) {
+         return sortArr.get(0).asText(null);
+      }
+      JsonNode id = lastHit.get("_id");
+      return id != null ? id.asText(null) : null;
+   }
+
+   /** Returns the raw JSON representation of the first sort value (number stays a number,
+    *  string gets its quotes). Use this to embed directly in search_after:[...]. */
+   public static String extractSearchAfterJsonFromLastHit(JsonNode hits) {
+      if (hits == null || !hits.isArray() || hits.isEmpty()) return null;
+      JsonNode lastHit = hits.get(hits.size() - 1);
+      JsonNode sortArr = lastHit.get("sort");
+      if (sortArr != null && sortArr.isArray() && !sortArr.isEmpty()) {
+         return sortArr.get(0).toString(); // e.g. 12345 or "\"abc\""
+      }
+      return null;
    }
 
    public static String prepareObjectForTarget(JsonNode hit, RdpConfig sourceConfig, RdpConfig targetConfig) {

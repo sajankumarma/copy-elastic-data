@@ -18,6 +18,7 @@ public class IndexConfig {
     // Inner classes
     public static class Index {
         private String indexName;
+        private boolean copyAll;
         private List<String> dataObjectTypes;
         private List<DataObject> dataObjects;
 
@@ -27,6 +28,14 @@ public class IndexConfig {
 
         public void setIndexName(String indexName) {
             this.indexName = indexName;
+        }
+
+        public boolean isCopyAll() {
+            return copyAll;
+        }
+
+        public void setCopyAll(boolean copyAll) {
+            this.copyAll = copyAll;
         }
 
         public List<String> getDataObjectTypes() {
